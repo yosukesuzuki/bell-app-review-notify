@@ -1,0 +1,38 @@
+machine:
+  timezone:
+    Asia/Tokyo
+
+dependencies:
+  pre:
+    - python getlatestsdk.py
+    - unzip -q -d $HOME google_appengine.zip
+    - npm install -g webdriverio
+    - npm install -g webdriver-manager
+    - curl -O http://selenium-release.storage.googleapis.com/2.47/selenium-server-standalone-2.47.0.jar
+  override:
+      - echo $HOME
+
+test:
+  pre:
+    - java -jar selenium-server-standalone-2.47.0.jar:
+        background: true
+    - sleep 5
+    - webdriver-manager start:
+        background: true
+    - sleep 5
+    - $HOME/go_appengine/goapp serve:
+        background: true
+    - sleep 5
+  override:
+    - $HOME/go_appengine/goapp test
+    - wdio wdio.conf.js
+
+deployment:
+  development:
+    branch: master
+    commands:
+      - $HOME/go_appengine/appcfg.py --oauth2_refresh_token=$APPENGINE_TOKEN update . --version=dev
+  production:
+    branch: deployment/production
+    commands:
+      - $HOME/go_appengine/appcfg.py --oauth2_refresh_token=$APPENGINE_TOKEN update . --version=production

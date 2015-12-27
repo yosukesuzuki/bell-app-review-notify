@@ -1,0 +1,39 @@
+application: bell-apps
+version: 1
+runtime: go
+api_version: go1
+
+handlers:
+  - url: /edit/.*
+    script: _go_app
+    login: required
+  - url: /.*
+    script: _go_app
+    secure: always
+
+skip_files: |
+  ^(.*/)?(
+  (_backup/.*)|
+  (app\.yaml)|
+  (app\.yml)|
+  (index\.yaml)|
+  (index\.yml)|
+  (#.*#)|
+  (.*~)|
+  (.*\.py[co])|
+  (.*\.po)|
+  (.*\.pot)|
+  (.*\.zip)|
+  (.*\.jar)|
+  (\..*)|
+  (app\.yaml\.sample)|
+  (index\.yaml\.sample)|
+  (cron\.yaml\.sample)|
+  (manage\.py)|
+  (TODO)|
+  (TODO\.pdf)|
+  (README)|
+  (README\.md)|
+  (README\.pdf)|
+  (LICENSE)|
+  )$
