@@ -1,20 +1,20 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http/httptest"
-	"strconv"
+	//	"bytes"
+	//	"encoding/json"
+	//	"net/http/httptest"
+	//	"strconv"
 	"testing"
 
-	"github.com/zenazn/goji/web"
+	//	"github.com/zenazn/goji/web"
 
-	"net/http"
+	//	"net/http"
 
-	"google.golang.org/appengine"
+	//	"google.golang.org/appengine"
 	"google.golang.org/appengine/aetest"
-	"google.golang.org/appengine/datastore"
-	"google.golang.org/appengine/user"
+	//	"google.golang.org/appengine/datastore"
+	//	"google.golang.org/appengine/user"
 )
 
 func TestIndex(t *testing.T) {
@@ -30,6 +30,7 @@ func TestIndex(t *testing.T) {
 	}
 }
 
+/*
 func TestSpot(t *testing.T) {
 	inst, err := aetest.NewInstance(nil)
 	if err != nil {
@@ -168,3 +169,4 @@ func TestUpdateSpot(t *testing.T) {
 		t.Fatalf("RevisionNumber should be 1")
 	}
 }
+*/

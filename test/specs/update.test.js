@@ -5,16 +5,9 @@
 var assert = require('assert');
 
 describe('patch api tests', function() {
-    it('login', function(done) {
-        browser
-            .url('/edit/')
-            .click('#admin')
-            .click('#submit-login')
-            .call(done);
-    });
     it('after login', function(done) {
         browser
-            .url('/edit/')
+            .url('/')
             .getText('p').then(function(value){
             assert.equal(value, 'Main Page');
 
