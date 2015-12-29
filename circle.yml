@@ -4,6 +4,10 @@ machine:
 
 dependencies:
   pre:
+    - go get github.com/unrolled/render
+    - go get github.com/zenazn/goji
+    - go get golang.org/x/net/context
+    - go get google.golang.org/appengine
     - python getlatestsdk.py
     - unzip -q -d $HOME google_appengine.zip
     - npm install -g webdriverio
