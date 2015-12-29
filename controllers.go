@@ -3,15 +3,16 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
+	//	"strconv"
 	"time"
 
 	"github.com/unrolled/render"
 	"github.com/zenazn/goji/web"
 	"google.golang.org/appengine"
-	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/urlfetch"
+	//	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
-	"google.golang.org/appengine/user"
+	//	"google.golang.org/appengine/user"
 )
 
 func indexHandler(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -21,10 +22,10 @@ func indexHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	})
 	expiration := time.Now()
 	expiration = expiration.Add(1 * time.Hour)
-	sessionIdCookie := sessionId()
-	cookie := http.Cookie{Name: "sessionid", Value: sessionIdCookie, Expires: expiration}
+	sessionIDCookie := sessionID()
+	cookie := http.Cookie{Name: "sessionid", Value: sessionIDCookie, Expires: expiration}
 	http.SetCookie(w, &cookie)
-	ren.HTML(w, http.StatusOK, "index", map[string]interface{}{"state": sessionIdCookie})
+	ren.HTML(w, http.StatusOK, "index", map[string]interface{}{"state": sessionIDCookie})
 }
 
 func registerHandler(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -50,6 +51,46 @@ func registerHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren.HTML(w, http.StatusOK, "register", nil)
 }
 
+func requestTokenHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	ren := render.New()
+	ctx := appengine.NewContext(r)
+	client := urlfetch.Client(ctx)
+	code := r.URL.Query().Get("code")
+	req, err := http.NewRequest("GET", "https://slack.com/api/oauth.access?code="+code, nil)
+	if err != nil {
+		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "cannnot make http request"})
+		return
+	}
+	req.Header.Add("Authorization", "Basic "+basicAuth())
+	resp, err := client.Do(req)
+	if err != nil {
+		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "failed to get response from Oauth2 request"})
+		return
+	}
+	dec := json.NewDecoder(resp.Body)
+	var jsonData AccessToken
+	dec.Decode(&jsonData)
+	if len(jsonData.Error) > 0 {
+		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "Slack API does return error:"+jsonData.Error})
+		return
+	}
+	var rn ReviewNotify
+	rn.Code = code
+	rn.AccessToken = jsonData.AccessToken
+	rn.WebhookURL = jsonData.IncomingWebhook.URL
+	rn.Channel = jsonData.IncomingWebhook.Channel
+	rn.ConfigurationURL = jsonData.IncomingWebhook.ConfigurationURL
+	rn.TeamName = jsonData.TeamName
+	rn.TeamID = jsonData.TeamID
+	_, err = rn.Create(ctx)
+	if err != nil {
+		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "cannot create new entity"})
+		return
+	}
+	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "successfully fetch webhook settings"})
+}
+
+/*
 func spotHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren := render.New()
 	ctx := appengine.NewContext(r)
@@ -142,3 +183,4 @@ func spotUpdateHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "entity updated", "item": checkSpot})
 }
+*/

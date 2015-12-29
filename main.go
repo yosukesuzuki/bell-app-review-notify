@@ -11,6 +11,7 @@ func init() {
 
 	goji.Get("/", indexHandler)
 	goji.Get("/register", registerHandler)
+	goji.Get("/request/token", requestTokenHandler)
 	/*
 	goji.Get("/api/v1/spots", spotHandler)
 	goji.Get("/api/v1/spots/:spotCode", spotGetHandler)
