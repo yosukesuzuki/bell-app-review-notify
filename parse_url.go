@@ -4,7 +4,6 @@ import (
 	"regexp"
 )
 
-
 func parseURL(url string) (string, string) {
 	regexURL := regexp.MustCompile(`https://itunes.apple.com/([a-zA-Z]{2})/app/id(\d+)`)
 	result := regexURL.FindStringSubmatch(url)

@@ -6,6 +6,7 @@ dependencies:
   pre:
     - go get github.com/unrolled/render
     - go get github.com/zenazn/goji
+	- go get github.com/PuerkitoBio/goquery
     - go get golang.org/x/net/context
     - go get google.golang.org/appengine
     - python getlatestsdk.py

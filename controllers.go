@@ -10,9 +10,9 @@ import (
 	"github.com/unrolled/render"
 	"github.com/zenazn/goji/web"
 	"google.golang.org/appengine"
-	"google.golang.org/appengine/urlfetch"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
 	//	"google.golang.org/appengine/user"
 )
 
@@ -112,7 +112,7 @@ func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "url sent is invalid"})
 		return
 	}
-	ren.JSON(w, http.StatusOK, map[string]interface{}{"app_id": appID, "country_code":countryCode, "title": title})
+	ren.JSON(w, http.StatusOK, map[string]interface{}{"app_id": appID, "country_code": countryCode, "title": title})
 }
 
 func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -139,6 +139,7 @@ func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "successfully set appstore review notification"})
 }
+
 /*
 func spotHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren := render.New()
