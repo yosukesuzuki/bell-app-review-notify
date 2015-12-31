@@ -6,11 +6,12 @@ import (
 	//	"strconv"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/unrolled/render"
 	"github.com/zenazn/goji/web"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
-	//	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 	//	"google.golang.org/appengine/user"
 )
@@ -71,7 +72,7 @@ func requestTokenHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	var jsonData AccessToken
 	dec.Decode(&jsonData)
 	if len(jsonData.Error) > 0 {
-		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "Slack API does return error:"+jsonData.Error})
+		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "Slack API does return error:" + jsonData.Error})
 		return
 	}
 	var rn ReviewNotify
@@ -90,6 +91,54 @@ func requestTokenHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "successfully fetch webhook settings"})
 }
 
+func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	ren := render.New()
+	ctx := appengine.NewContext(r)
+	url := r.URL.Query().Get("url")
+	client := urlfetch.Client(ctx)
+	req, _ := http.NewRequest("GET", url, nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "cannot get the url"})
+		return
+	}
+	var title string
+	doc, _ := goquery.NewDocumentFromResponse(resp)
+	doc.Find("body").Each(func(i int, s *goquery.Selection) {
+		title = s.Find("h1").Text()
+	})
+	appID, countryCode := parseURL(url)
+	if err != nil {
+		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "url sent is invalid"})
+		return
+	}
+	ren.JSON(w, http.StatusOK, map[string]interface{}{"app_id": appID, "country_code":countryCode, "title": title})
+}
+
+func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	ren := render.New()
+	ctx := appengine.NewContext(r)
+	code := r.URL.Query().Get("code")
+	appID := r.URL.Query().Get("app_id")
+	appTitle := r.URL.Query().Get("title")
+	countryCode := r.URL.Query().Get("country_code")
+	var rn ReviewNotify
+	rn.Code = code
+	err := datastore.Get(ctx, rn.key(ctx), &rn)
+	if err != nil {
+		ren.JSON(w, http.StatusNotFound, map[string]interface{}{"message": "cannot find any entity"})
+		return
+	}
+	rn.AppID = appID
+	rn.CountryCode = countryCode
+	rn.Title = appTitle
+	_, err = rn.Update(ctx)
+	if err != nil {
+		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "cannot set notification"})
+		return
+	}
+	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "successfully set appstore review notification"})
+}
 /*
 func spotHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren := render.New()

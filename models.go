@@ -31,7 +31,7 @@ type AccessToken struct {
 type ReviewNotify struct {
 	Code             string    `json:"code"`
 	AppID            string    `json:"app_id"`
-	Region           string    `json:"region"`
+	CountryCode      string    `json:"country_code"`
 	Title            string    `json:"title"`
 	AccessToken      string    `json:"access_token"`
 	WebhookURL       string    `json:"webhook_url"`
@@ -39,7 +39,7 @@ type ReviewNotify struct {
 	TeamID           string    `json:"team_id"`
 	Channel          string    `json:"channel"`
 	ConfigurationURL string    `json:"configuration_url"`
-	SetUpCompleted   bool `json:"-"`
+	SetUpCompleted   bool      `json:"-"`
 	UpdatedAt        time.Time `json:"updated_at"`
 	CreatedAt        time.Time `json:"created_at"`
 }
@@ -69,3 +69,15 @@ func (rn *ReviewNotify) Update(ctx context.Context) (*ReviewNotify, error) {
 	}
 	return rn, nil
 }
+
+type AppStoreID struct {
+	CountryDomain string
+	CountryName   string
+	CountryCode   string
+}
+
+/*
+type AppStoreSettings struct {
+	Stores []AppStoreID
+}
+*/
