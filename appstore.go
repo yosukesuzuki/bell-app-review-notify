@@ -1,6 +1,11 @@
 package main
 
-func AppStoreSetting(domain string) AppStoreID {
+import (
+	"errors"
+	"regexp"
+)
+
+func AppStoreSetting(domain string) (AppStoreID, error) {
 	var appStoreSettings = map[string]AppStoreID{
 		"ae": AppStoreID{CountryDomain: "ae", CountryName: "United Arab Emirates", CountryCode: "143481"},
 		"ag": AppStoreID{CountryDomain: "ag", CountryName: "Antigua and Barbuda", CountryCode: "143540"},
@@ -158,5 +163,19 @@ func AppStoreSetting(domain string) AppStoreID {
 		"za": AppStoreID{CountryDomain: "za", CountryName: "South Africa", CountryCode: "143472"},
 		"zw": AppStoreID{CountryDomain: "zw", CountryName: "Zimbabwe", CountryCode: "143605"},
 	}
-	return appStoreSettings[domain]
+	appStoreSetting, ok := appStoreSettings[domain]
+	if ok != true {
+		return AppStoreID{}, errors.New("cannot find country domain")
+	}
+	return appStoreSetting, nil
+}
+
+func parseURL(url string) (string, string, error) {
+	regexURL := regexp.MustCompile(`https://itunes.apple.com/([a-zA-Z]{2})/app/id(\d+)`)
+	result := regexURL.FindStringSubmatch(url)
+	appStoreSetting, err := AppStoreSetting(result[1])
+	if err != nil {
+		return "", "", errors.New("invalid url")
+	}
+	return result[2], appStoreSetting.CountryCode, nil
 }

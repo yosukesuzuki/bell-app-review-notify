@@ -95,6 +95,11 @@ func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren := render.New()
 	ctx := appengine.NewContext(r)
 	url := r.URL.Query().Get("url")
+	appID, countryCode, err := parseURL(url)
+	if err != nil {
+		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "url is invalid"})
+		return
+	}
 	client := urlfetch.Client(ctx)
 	req, _ := http.NewRequest("GET", url, nil)
 	resp, err := client.Do(req)
@@ -107,11 +112,6 @@ func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	doc.Find("body").Each(func(i int, s *goquery.Selection) {
 		title = s.Find("h1").Text()
 	})
-	appID, countryCode := parseURL(url)
-	if err != nil {
-		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "url sent is invalid"})
-		return
-	}
 	ren.JSON(w, http.StatusOK, map[string]interface{}{"app_id": appID, "country_code": countryCode, "title": title})
 }
 
