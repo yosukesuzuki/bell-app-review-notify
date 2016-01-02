@@ -170,12 +170,15 @@ func AppStoreSetting(domain string) (AppStoreID, error) {
 	return appStoreSetting, nil
 }
 
-func parseURL(url string) (string, string, error) {
-	regexURL := regexp.MustCompile(`https://itunes.apple.com/([a-zA-Z]{2})/app/id(\d+)`)
+func parseURL(url string) (string, string, string, error) {
+	regexURL := regexp.MustCompile(`https://itunes.apple.com/([a-zA-Z]{2})/app.*/id(\d{9})`)
 	result := regexURL.FindStringSubmatch(url)
+	if len(result) < 1 {
+		return "", "", "", errors.New("invalid url")
+	}
 	appStoreSetting, err := AppStoreSetting(result[1])
 	if err != nil {
-		return "", "", errors.New("invalid url")
+		return "", "", "", errors.New("invalid url")
 	}
-	return result[2], appStoreSetting.CountryCode, nil
+	return result[2], appStoreSetting.CountryCode, appStoreSetting.CountryName, nil
 }

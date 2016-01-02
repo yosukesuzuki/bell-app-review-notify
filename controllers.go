@@ -95,7 +95,7 @@ func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren := render.New()
 	ctx := appengine.NewContext(r)
 	url := r.URL.Query().Get("url")
-	appID, countryCode, err := parseURL(url)
+	appID, countryCode, countryName, err := parseURL(url)
 	if err != nil {
 		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "url is invalid"})
 		return
@@ -112,7 +112,7 @@ func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	doc.Find("body").Each(func(i int, s *goquery.Selection) {
 		title = s.Find("h1").Text()
 	})
-	ren.JSON(w, http.StatusOK, map[string]interface{}{"app_id": appID, "country_code": countryCode, "title": title})
+	ren.JSON(w, http.StatusOK, map[string]interface{}{"app_id": appID, "country_code": countryCode, "country_name": countryName, "title": title})
 }
 
 func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -132,6 +132,7 @@ func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	rn.AppID = appID
 	rn.CountryCode = countryCode
 	rn.Title = appTitle
+	rn.SetUpCompleted = true
 	_, err = rn.Update(ctx)
 	if err != nil {
 		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "cannot set notification"})
