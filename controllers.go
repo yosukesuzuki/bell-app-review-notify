@@ -2,19 +2,21 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
-	//	"strconv"
-	"time"
 	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
+	"time"
 
-	"gopkg.in/validator.v2"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/unrolled/render"
 	"github.com/zenazn/goji/web"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/taskqueue"
 	"google.golang.org/appengine/urlfetch"
+	"gopkg.in/validator.v2"
 	//	"google.golang.org/appengine/user"
 )
 
@@ -136,7 +138,7 @@ func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	rn.Title = appTitle
 	rn.SetUpCompleted = true
 	err = validator.Validate(rn)
-    if err != nil {
+	if err != nil {
 		errs := err.(validator.ErrorMap)
 		var errOuts []string
 		for f, e := range errs {
@@ -158,97 +160,95 @@ func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "successfully set appstore review notification"})
 }
 
-/*
-func spotHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+func getReviewSettingsHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren := render.New()
 	ctx := appengine.NewContext(r)
-	spots := []SpotGet{}
-	_, err := datastore.NewQuery("Spot").Order("-UpdatedAt").GetAll(ctx, &spots)
+	reviews := []ReviewNotify{}
+	_, err := datastore.NewQuery("ReviewNotify").Filter("SetUpCompleted =", true).Order("-UpdatedAt").GetAll(ctx, &reviews)
 	if err != nil {
-		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "error"})
+		log.Infof(ctx, "failed to query datastore")
 		return
 	}
-	ren.JSON(w, http.StatusOK, map[string]interface{}{"items": spots})
+	for i := 0; i < len(reviews); i++ {
+		log.Infof(ctx, reviews[i].AppID)
+		t := taskqueue.NewPOSTTask("/admin/task/getreview/"+reviews[i].Code, nil)
+		if _, err := taskqueue.Add(ctx, t, ""); err != nil {
+			log.Infof(ctx, "failed to post new task")
+			return
+		}
+	}
+	listDataSet := map[string]interface{}{"items": reviews}
+	ren.JSON(w, http.StatusOK, listDataSet)
 }
 
-func spotGetHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+func getReviewHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	code := c.URLParams["code"]
 	ctx := appengine.NewContext(r)
-	ren := render.New()
-	spotCode, err := strconv.ParseInt(c.URLParams["spotCode"], 10, 64)
+	log.Infof(ctx, "code: %v", code)
+	var rn ReviewNotify
+	rn.Code = code
+	err := datastore.Get(ctx, rn.key(ctx), &rn)
 	if err != nil {
-		log.Infof(ctx, "failed to parse int :%v", err)
-		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "error, bad resource id"})
+		log.Infof(ctx, "cannot get AppReview setting: %v", err)
 		return
 	}
-	var spot SpotGet
-	spot.SpotCode = spotCode
-	err = datastore.Get(ctx, spot.key(ctx), &spot)
+	client := urlfetch.Client(ctx)
+	req, err := http.NewRequest("GET", "https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?pageNumber=0&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software&id="+rn.AppID, nil)
+	req.Header.Add("X-Apple-Store-Front", rn.CountryCode)
+	req.Header.Add("User-Agent", "iTunes/12.3 (Macintosh; U; Mac OS X 10.11)")
+	resp, err := client.Do(req)
 	if err != nil {
-		ren.JSON(w, http.StatusNotFound, map[string]interface{}{"message": "error, entity not found"})
+		log.Infof(ctx, "fail to request appstore review feed: %v", err)
 		return
 	}
-	ren.JSON(w, http.StatusOK, map[string]interface{}{"item": spot})
-}
+	defer resp.Body.Close()
+	regex_str := "([0-9]{4,}$)"
+	re, err := regexp.Compile(regex_str)
+	if err != nil {
+		log.Infof(ctx, "regex compile error: %v", err)
+	}
+	doc, _ := goquery.NewDocumentFromResponse(resp)
+	doc.Find("Document View VBoxView View MatrixView VBoxView:nth-child(1) VBoxView VBoxView VBoxView").Each(func(_ int, s *goquery.Selection) {
+		titleNode := s.Find("HBoxView>TextView>SetFontStyle>b").First()
+		title := titleNode.Text()
+		if title != "" {
+			reviewIDURL, idExists := s.Find("HBoxView VBoxView GotoURL").First().Attr("url")
+			if idExists {
+				reviewID := re.FindString(reviewIDURL)
+				var content string
+				var versionAndDate string
+				if len(reviewID) > 4 {
+					num := 0
+					log.Infof(ctx, title)
+					log.Infof(ctx, reviewID)
+					s.Find("TextView SetFontStyle").Each(func(_ int, sc *goquery.Selection) {
+						num = num + 1
+						if num == 4 {
+							content = sc.Text()
+							log.Infof(ctx, content)
+						}
+					})
+					userProfileNode := s.Find("HBoxView TextView SetFontStyle GotoURL").First()
+					versionAndDate = userProfileNode.Parent().Text()
+					versionAndDate = strings.Replace(versionAndDate, "\n", "", -1)
+					versionAndDate = strings.Replace(versionAndDate, " ", "", -1)
+					log.Infof(ctx, "version and date: %v", versionAndDate)
+					var appreview AppReview
+					appreview.AppID = rn.AppID
+					appreview.Code = rn.Code
+					appreview.ReviewID = reviewID
+					appreview.Title = title
+					appreview.Content = content
+					appreview.Version = versionAndDate
+					_, err = appreview.Create(ctx)
+					if err != nil {
+						log.Infof(ctx, "cannot create review an entity", err)
+						return
+					}
+				}
 
-func spotCreateHandler(c web.C, w http.ResponseWriter, r *http.Request) {
-	var spot Spot
-	ctx := appengine.NewContext(r)
-	ren := render.New()
-	err := json.NewDecoder(r.Body).Decode(&spot)
-	if err != nil {
-		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "error, cannot decode json"})
-		log.Infof(ctx, "failed to parse JSON:%v", err)
-		return
-	}
-	_, err = spot.Create(ctx)
-	if err != nil {
-		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "error, cannot create new entity"})
-		return
-	}
-	var spotGet SpotGet
-	spotGet.SpotCode = spot.SpotCode
-	err = datastore.Get(ctx, spotGet.key(ctx), &spotGet)
-	ren.JSON(w, http.StatusCreated, map[string]interface{}{"message": "new entity created", "item": spotGet})
-}
+			}
+		}
 
-func spotUpdateHandler(c web.C, w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
-	ren := render.New()
-	spotCode, err := strconv.ParseInt(c.URLParams["spotCode"], 10, 64)
-	if err != nil {
-		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "error, bad resource id"})
-		return
-	}
-	var checkSpot Spot
-	checkSpot.SpotCode = spotCode
-	currentUser := user.Current(ctx)
-	err = datastore.Get(ctx, checkSpot.key(ctx), &checkSpot)
-	if err != nil {
-		ren.JSON(w, http.StatusNotFound, map[string]interface{}{"message": "error, entity not found"})
-		return
-	}
-	if currentUser.ID != checkSpot.Editor {
-		ren.JSON(w, http.StatusForbidden, map[string]interface{}{"message": "error, you don't have right to write this entity"})
-		return
-	}
-	var updateSpot Spot
-	err = json.NewDecoder(r.Body).Decode(&updateSpot)
-	if err != nil {
-		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "error, cannot decode json"})
-		log.Infof(ctx, "failed to parse JSON:%v", err)
-		return
-	}
-	updateSpot.Editor = checkSpot.Editor
-	_, err = updateSpot.Update(ctx, spotCode)
-	if err != nil {
-		ren.JSON(w, http.StatusForbidden, map[string]interface{}{"message": "error, you cannot edit this spot"})
-		return
-	}
-	err = datastore.Get(ctx, checkSpot.key(ctx), &checkSpot)
-	if err != nil {
-		ren.JSON(w, http.StatusNotFound, map[string]interface{}{"message": "error, entity not found"})
-		return
-	}
-	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "entity updated", "item": checkSpot})
+	})
 }
-*/

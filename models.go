@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"net/http"
 	"time"
 
 	"golang.org/x/net/context"
-	//	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
-	//	"google.golang.org/appengine/user"
+	"google.golang.org/appengine/delay"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
 )
 
 // IncomingWebhook is a child element of oauth2 response
@@ -48,7 +52,7 @@ func (rn *ReviewNotify) key(ctx context.Context) *datastore.Key {
 	return datastore.NewKey(ctx, "ReviewNotify", rn.Code, 0, nil)
 }
 
-//Create new Spot Entity
+//Create new ReviewNotify Entity
 func (rn *ReviewNotify) Create(ctx context.Context) (*ReviewNotify, error) {
 	rn.SetUpCompleted = false
 	rn.CreatedAt = time.Now()
@@ -60,7 +64,7 @@ func (rn *ReviewNotify) Create(ctx context.Context) (*ReviewNotify, error) {
 	return rn, nil
 }
 
-//Update existing Spot Entity
+//Update existing ReviewNotify Entity
 func (rn *ReviewNotify) Update(ctx context.Context) (*ReviewNotify, error) {
 	rn.UpdatedAt = time.Now()
 	_, err := datastore.Put(ctx, rn.key(ctx), rn)
@@ -76,8 +80,63 @@ type AppStoreID struct {
 	CountryCode   string
 }
 
-/*
-type AppStoreSettings struct {
-	Stores []AppStoreID
+// AppReview is a kind which stores reviews of a app, a entity == a review
+type AppReview struct {
+	KeyName   string    `json:"key_name" datastore:"KeyName"`
+	AppID     string    `json:"app_id" datastore:"AppID"`
+	Code      string    `json:"code" datastore:"Code"`
+	ReviewID  string    `json:"review_id" datastore:"ReviewID"`
+	Star      string    `json:"star" datastore:"Star"`
+	Title     string    `json:"title" datastore:"Tite,noindex"`
+	Content   string    `json:"content" datastore:"Content,noindex"`
+	Version   string    `json:"version" datastore:"Version,noindex"`
+	CreatedAt time.Time `json:"created_at" datastore:"CreatedAt"`
 }
-*/
+
+func (ar *AppReview) key(ctx context.Context) *datastore.Key {
+	return datastore.NewKey(ctx, "AppReview", ar.KeyName, 0, nil)
+}
+
+func NotifyReviewToSlack(ctx context.Context, ar *AppReview) {
+	var rn ReviewNotify
+	key := datastore.NewKey(ctx, "ReviewNotify", ar.Code, 0, nil)
+	err := datastore.Get(ctx, key, &rn)
+	if err != nil {
+		log.Infof(ctx, "%v", err)
+		return
+	}
+	client := urlfetch.Client(ctx)
+	iconURL := "https://bell-apps.appspot.com/statici/icon57.png"
+	text := "[" + rn.Title + "]\n" + ar.Title + ":\n" + ar.Content + "\n" + ar.Version
+	payload := map[string]string{"text": text, "username": "app review", "icon_url": iconURL}
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		log.Infof(ctx, "%v", err)
+		return
+	}
+	b := bytes.NewBuffer(payloadJSON)
+	req, err := http.NewRequest("POST", rn.WebhookURL, b)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
+}
+
+var notifyToSlackAsync = delay.Func("put", NotifyReviewToSlack)
+
+// Save puts to datastore
+func (ar *AppReview) Create(ctx context.Context) (*AppReview, error) {
+	var appreview AppReview
+	ar.KeyName = ar.AppID + "_" + ar.ReviewID
+	err := datastore.Get(ctx, ar.key(ctx), &appreview)
+	if err == nil {
+		log.Infof(ctx, "already registered")
+		return &appreview, nil
+	}
+	ar.CreatedAt = time.Now()
+	_, err = datastore.Put(ctx, ar.key(ctx), ar)
+	if err != nil {
+		return nil, err
+	}
+	notifyToSlackAsync.Call(ctx, ar)
+	return ar, nil
+}
