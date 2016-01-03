@@ -115,10 +115,14 @@ func NotifyReviewToSlack(ctx context.Context, ar *AppReview) {
 		return
 	}
 	b := bytes.NewBuffer(payloadJSON)
-	req, err := http.NewRequest("POST", rn.WebhookURL, b)
+	req, _ := http.NewRequest("POST", rn.WebhookURL, b)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
+	resp, _ := client.Do(req)
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		rn.SetUpCompleted = false
+		_, err = rn.Update(ctx)
+	}
 }
 
 var notifyToSlackAsync = delay.Func("put", NotifyReviewToSlack)
