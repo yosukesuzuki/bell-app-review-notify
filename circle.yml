@@ -9,6 +9,7 @@ dependencies:
     - go get github.com/PuerkitoBio/goquery
     - go get golang.org/x/net/context
     - go get google.golang.org/appengine
+    - go get gopkg.in/validator.v2
     - python getlatestsdk.py
     - unzip -q -d $HOME google_appengine.zip
     - npm install -g webdriverio
