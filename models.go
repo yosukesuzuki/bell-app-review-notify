@@ -106,19 +106,38 @@ func NotifyReviewToSlack(ctx context.Context, ar *AppReview) {
 		return
 	}
 	client := urlfetch.Client(ctx)
-	iconURL := "https://bell-apps.appspot.com/statici/icon57.png"
+	iconURL := "https://bell-apps.appspot.com/static/icon57.png"
 	text := "[" + rn.Title + "]\n" + ar.Title + ":\n" + ar.Content + "\n" + ar.Version
-	payload := map[string]string{"text": text, "username": "app review", "icon_url": iconURL}
+	var fields []map[string]interface{}
+	fields = append(fields, map[string]interface{}{
+		"title": "meta",
+		"value": ar.Version,
+		"short": false,
+	})
+	var attachments []map[string]interface{}
+	attachments = append(attachments, map[string]interface{}{
+		"fallback": text,
+		"pretext": rn.Title,
+		"color": "#8EFCD3",
+		"title": ar.Title,
+		"text": ar.Content+ "\n",
+		"fields": fields,
+	})
+	payload := map[string]interface{}{"attachments": attachments, "username": "Bell Apps App Review Notification", "icon_url": iconURL, "mrkdwn": false}
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
 		log.Infof(ctx, "%v", err)
 		return
 	}
 	b := bytes.NewBuffer(payloadJSON)
-	req, err := http.NewRequest("POST", rn.WebhookURL, b)
+	req, _ := http.NewRequest("POST", rn.WebhookURL, b)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
+	resp, _ := client.Do(req)
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		rn.SetUpCompleted = false
+		_, err = rn.Update(ctx)
+	}
 }
 
 var notifyToSlackAsync = delay.Func("put", NotifyReviewToSlack)
@@ -126,7 +145,7 @@ var notifyToSlackAsync = delay.Func("put", NotifyReviewToSlack)
 // Save puts to datastore
 func (ar *AppReview) Create(ctx context.Context) (*AppReview, error) {
 	var appreview AppReview
-	ar.KeyName = ar.AppID + "_" + ar.ReviewID
+	ar.KeyName = ar.Code + "_" + ar.AppID + "_" + ar.ReviewID
 	err := datastore.Get(ctx, ar.key(ctx), &appreview)
 	if err == nil {
 		log.Infof(ctx, "already registered")
