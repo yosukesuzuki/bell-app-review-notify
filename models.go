@@ -126,7 +126,7 @@ var notifyToSlackAsync = delay.Func("put", NotifyReviewToSlack)
 // Save puts to datastore
 func (ar *AppReview) Create(ctx context.Context) (*AppReview, error) {
 	var appreview AppReview
-	ar.KeyName = ar.AppID + "_" + ar.ReviewID
+	ar.KeyName = ar.Code + "_" + ar.AppID + "_" + ar.ReviewID
 	err := datastore.Get(ctx, ar.key(ctx), &appreview)
 	if err == nil {
 		log.Infof(ctx, "already registered")
