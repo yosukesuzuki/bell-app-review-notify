@@ -5,7 +5,9 @@ import (
 	"net/http"
 	//	"strconv"
 	"time"
+	"fmt"
 
+	"gopkg.in/validator.v2"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/unrolled/render"
 	"github.com/zenazn/goji/web"
@@ -126,13 +128,28 @@ func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	rn.Code = code
 	err := datastore.Get(ctx, rn.key(ctx), &rn)
 	if err != nil {
-		ren.JSON(w, http.StatusNotFound, map[string]interface{}{"message": "cannot find any entity"})
+		ren.JSON(w, http.StatusNotFound, map[string]interface{}{"message": "invalid request"})
 		return
 	}
 	rn.AppID = appID
 	rn.CountryCode = countryCode
 	rn.Title = appTitle
 	rn.SetUpCompleted = true
+	err = validator.Validate(rn)
+    if err != nil {
+		errs := err.(validator.ErrorMap)
+		var errOuts []string
+		for f, e := range errs {
+			errOuts = append(errOuts, fmt.Sprintf("\t - %s (%v)\n", f, e))
+		}
+		// Again this part is extraneous and you should not need this in real
+		// code.
+		for _, str := range errOuts {
+			log.Infof(ctx, str)
+		}
+		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "insufficient request"})
+		return
+	}
 	_, err = rn.Update(ctx)
 	if err != nil {
 		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "cannot set notification"})

@@ -30,15 +30,15 @@ type AccessToken struct {
 // ReviewNotify is a Struct for AppStore review notification setting, definition of datastore kind
 type ReviewNotify struct {
 	Code             string    `json:"code"`
-	AppID            string    `json:"app_id"`
-	CountryCode      string    `json:"country_code"`
+	AppID            string    `json:"app_id" validate:"min=5,max=20,regexp=^[0-9]+$"`
+	CountryCode      string    `json:"country_code" validate:"min=5,max=6,regexp=^[0-9]+$"`
 	Title            string    `json:"title"`
 	AccessToken      string    `json:"access_token"`
-	WebhookURL       string    `json:"webhook_url"`
+	WebhookURL       string    `json:"webhook_url" validate:"regexp=^https.+$"`
 	TeamName         string    `json:"team_name"`
 	TeamID           string    `json:"team_id"`
-	Channel          string    `json:"channel"`
-	ConfigurationURL string    `json:"configuration_url"`
+	Channel          string    `json:"channel" validate:"regexp=^#.+$"`
+	ConfigurationURL string    `json:"configuration_url" validate:"regexp=^https.+$"`
 	SetUpCompleted   bool      `json:"-"`
 	UpdatedAt        time.Time `json:"updated_at"`
 	CreatedAt        time.Time `json:"created_at"`

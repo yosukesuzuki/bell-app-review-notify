@@ -71,14 +71,17 @@
                 </div>
                 <div class="panel-body">
                 <form id="appstore-detail-form">
-                  <input type="hidden" id="countrycode" value="$countrycode">
                   <div class="form-group">
                     <label for="appid">App ID</label>
                     <input type="text" class="form-control" name="appid" id="appid" value="$appid" disabled>
                   </div>
                   <div class="form-group">
                     <label for="countryname">Region</label>
-                    <input type="text" class="form-control" name="countryname" id="appid" value="$countryname" disabled>
+                    <input type="text" class="form-control" name="countryname" id="countryname" value="$countryname" disabled>
+                  </div>
+                  <div class="form-group">
+                    <label for="countrycode">Region Code</label>
+                    <input type="text" class="form-control" name="countrycode" id="countrycode" value="$countrycode" disabled>
                   </div>
                   <div class="form-group">
                     <label for="countryname">App Title</label>
@@ -102,10 +105,32 @@
                 $("#parse-url-warning").remove();
             }
             $("#process-container").append(urlPostForm);
+            $(document).on("click", "#submit-detail", setNotfication);
             d.resolve();
         }).fail(function(data){
             $("#appstoreurl-panel").removeClass("panel-primary").addClass("panel-warning");
             $("#appstoreurl").after('<p class="help-block" id="parse-url-warning">'+data.responseJSON.message+'</p>');
+            d.reject();
+        });
+        return d.promise();
+    }
+    function setNotfication () {
+        var d = $.Deferred();
+        var code = getCodeParameter();
+        var params = {
+            code: code,
+            app_id: $("#appid").val(),
+            country_code: $("#countrycode").val(),
+            title: $("#title").val(),
+        };
+        $.ajax({url: "/set/notification?"+ $.param(params),
+        }).done(function(data){
+            $("div#appstore-details-panel div.panel-body").html("done");
+            $("div#appstore-details-panel").removeClass("panel-primary").addClass("panel-success");
+            d.resolve();
+        }).fail(function(data){
+            $("div#appstore-details-panel").removeClass("panel-primary").addClass("panel-warning");
+            $("#submit-detail").before('<p class="help-block" id="set-notification-warning">'+data.responseJSON.message+'</p>');
             d.reject();
         });
         return d.promise();
