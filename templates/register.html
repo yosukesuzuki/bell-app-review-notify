@@ -125,7 +125,7 @@
         };
         $.ajax({url: "/set/notification?"+ $.param(params),
         }).done(function(data){
-            $("div#appstore-details-panel div.panel-body").html("done");
+            $("div#appstore-details-panel div.panel-body").html("Congratulations! All settings are done!");
             $("div#appstore-details-panel").removeClass("panel-primary").addClass("panel-success");
             d.resolve();
         }).fail(function(data){
