@@ -1,2 +1,142 @@
-<p>Register AppStore Review Notification</p>
-
+<div class="col-lg-6" id="process-container">
+    <h1>register notification</h1>
+    <div class="panel panel-primary" id="request-token-panel">
+        <div class="panel-heading">
+            <h3 class="panel-title">Accessing to Slack API ...</h3>
+        </div>
+        <div class="panel-body">
+           loading...
+        </div>
+    </div>
+</div>
+<script>
+    function getCodeParameter() {
+        var getParamters = window.location.search.replace("?", "").split("&");
+        var code = "";
+        $.each(getParamters, function (i, val) {
+            var parameter = val.split("=")
+            if (parameter[0] == "code") {
+                code = parameter[1];
+            }
+        });
+        return code;
+    }
+    function requestToken () {
+        var d = $.Deferred();
+        var code = getCodeParameter();
+        $.ajax({url: "/request/token?code="+code,
+        }).done(function(data){
+            $("div#request-token-panel div.panel-body").text("done");
+            var urlPostForm = `
+             <div class="panel panel-primary" id="appstoreurl-panel">
+                <div class="panel-heading">
+                    <h3 class="panel-title">AppStore URL</h3>
+                </div>
+                <div class="panel-body">
+                <form id="appstoreurl-form">
+                  <div class="form-group">
+                    <label for="appstoreurl">Input App Store URL</label>
+                    <input type="url" class="form-control" id="appstoreurl" placeholder="https://itunes.apple.com/xxx">
+                  </div>
+                  <span id="submit-url" class="btn btn-default">Submit</span>
+                </form>
+                </div>
+            </div>
+            `;
+            $("div#request-token-panel").removeClass("panel-primary").addClass("panel-success");
+            $("div#process-container").append(urlPostForm);
+            d.resolve();
+        }).fail(function(data){
+            $("div#request-token-panel").removeClass("panel-primary").addClass("panel-warning");
+            $("div#request-token-panel div.panel-body").text(data.responseJSON.message);
+            d.reject();
+        });
+        return d.promise();
+    }
+    function setParseURLEvent () {
+        var d = $.Deferred();
+        $(document).on("click", "#submit-url", parseURL);
+        d.resolve();
+        return d.promise();
+    }
+    function parseURL () {
+        var d = $.Deferred();
+        var appStoreURL = $("#appstoreurl").val();
+        $.ajax({url:"/parse/store/url?url="+encodeURIComponent(appStoreURL),
+        }).done(function(data){
+            var urlPostForm = `
+             <div class="panel panel-primary" id="appstore-details-panel">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Configure Detail of Notification</h3>
+                </div>
+                <div class="panel-body">
+                <form id="appstore-detail-form">
+                  <div class="form-group">
+                    <label for="appid">App ID</label>
+                    <input type="text" class="form-control" name="appid" id="appid" value="$appid" disabled>
+                  </div>
+                  <div class="form-group">
+                    <label for="countryname">Region</label>
+                    <input type="text" class="form-control" name="countryname" id="countryname" value="$countryname" disabled>
+                  </div>
+                  <div class="form-group">
+                    <label for="countrycode">Region Code</label>
+                    <input type="text" class="form-control" name="countrycode" id="countrycode" value="$countrycode" disabled>
+                  </div>
+                  <div class="form-group">
+                    <label for="countryname">App Title</label>
+                    <input type="text" class="form-control" name="title" id="title" value="$title" disabled>
+                  </div>
+                  <span id="submit-detail" class="btn btn-default">Submit</span>
+                </form>
+                </div>
+            </div>
+            `;
+            urlPostForm = urlPostForm
+                    .replace("$appid", data.app_id)
+                    .replace("$countryname", data.country_name)
+                    .replace("$countrycode", data.country_code)
+                    .replace("$title", data.title);
+            $("#appstoreurl-panel").removeClass("panel-primary").removeClass("panel-warning").addClass("panel-success");
+            if($("#appstore-details-panel").length){
+                $("#appstore-details-panel").remove();
+            }
+            if($("#parse-url-warning").length){
+                $("#parse-url-warning").remove();
+            }
+            $("#process-container").append(urlPostForm);
+            $(document).on("click", "#submit-detail", setNotfication);
+            d.resolve();
+        }).fail(function(data){
+            $("#appstoreurl-panel").removeClass("panel-primary").addClass("panel-warning");
+            $("#appstoreurl").after('<p class="help-block" id="parse-url-warning">'+data.responseJSON.message+'</p>');
+            d.reject();
+        });
+        return d.promise();
+    }
+    function setNotfication () {
+        var d = $.Deferred();
+        var code = getCodeParameter();
+        var params = {
+            code: code,
+            app_id: $("#appid").val(),
+            country_code: $("#countrycode").val(),
+            title: $("#title").val(),
+        };
+        $.ajax({url: "/set/notification?"+ $.param(params),
+        }).done(function(data){
+            $("div#appstore-details-panel div.panel-body").html("done");
+            $("div#appstore-details-panel").removeClass("panel-primary").addClass("panel-success");
+            d.resolve();
+        }).fail(function(data){
+            $("div#appstore-details-panel").removeClass("panel-primary").addClass("panel-warning");
+            $("#submit-detail").before('<p class="help-block" id="set-notification-warning">'+data.responseJSON.message+'</p>');
+            d.reject();
+        });
+        return d.promise();
+    }
+    $(document).ready(function () {
+        requestToken()
+                .then(setParseURLEvent);
+    });
+</script>

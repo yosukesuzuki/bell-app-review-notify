@@ -8,8 +8,8 @@ describe('patch api tests', function() {
     it('after login', function(done) {
         browser
             .url('/')
-            .getText('p').then(function(value){
-            assert.equal(value, 'Main Page');
+            .getText('h3').then(function(value){
+            assert.equal(value, 'Bell Apps');
 
             })
             .call(done);

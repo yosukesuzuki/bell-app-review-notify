@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func sessionId() string {
+func sessionID() string {
 	b := make([]byte, 32)
 	_, _ = io.ReadFull(rand.Reader, b)
 	return strings.TrimRight(base32.StdEncoding.EncodeToString(b), "=")

@@ -4,129 +4,80 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"google.golang.org/appengine"
+	//	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
-	"google.golang.org/appengine/user"
+	//	"google.golang.org/appengine/user"
 )
 
-// T2JPUser is the kind which stores data of users who comment and have favourite list
-type T2JPUser struct {
-	KeyName    string    `json:"key_name" datastore:"KeyName"`
-	Name       string    `json:"name" datastore:"Name"`
-	Email      string    `json:"email" datastore:"Email"`
-	IconURL    string    `json:"icon_url" datastore:"IconURL"`
-	Favourites []string  `json:"favourites" datastore:"Favourites"` // list of SpotCode
-	IsEditor   bool      `json:"is_editor" datastore:"IsEditor"`
-	IsAdmin    bool      `json:"is_admin" datastore:"IsAdmin"`
-	UpdatedAt  time.Time `json:"updated_at" datastore:"UpdatedAt"`
-	CreatedAt  time.Time `json:"created_at" datastore:"CreatedAt"`
+// IncomingWebhook is a child element of oauth2 response
+type IncomingWebhook struct {
+	URL              string `json:"url"`
+	Channel          string `json:"channel"`
+	ConfigurationURL string `json:"configuration_url"`
 }
 
-func (u *T2JPUser) key(ctx context.Context) *datastore.Key {
-	return datastore.NewKey(ctx, "T2JPUser", u.KeyName, 0, nil)
+// AccessToken is a struct for oauth2 response
+type AccessToken struct {
+	AccessToken     string          `json:"access_token"`
+	Scope           string          `json:"scope"`
+	TeamName        string          `json:"team_name"`
+	TeamID          string          `json:"team_id"`
+	IncomingWebhook IncomingWebhook `json:"incoming_webhook"`
+	OK              bool            `json:"ok"`
+	Error           string          `json:"error"`
 }
 
-//Create new T2JPUser entity
-func (u *T2JPUser) Create(ctx context.Context) (*T2JPUser, error) {
-	currentUser := user.Current(ctx)
-	u.KeyName = currentUser.ID
-	u.Email = currentUser.Email
-	u.CreatedAt = time.Now()
-	u.UpdatedAt = time.Now()
-	_, err := datastore.Put(ctx, u.key(ctx), u)
-	if err != nil {
-		return nil, err
-	}
-	return u, nil
+// ReviewNotify is a Struct for AppStore review notification setting, definition of datastore kind
+type ReviewNotify struct {
+	Code             string    `json:"code"`
+	AppID            string    `json:"app_id" validate:"min=5,max=20,regexp=^[0-9]+$"`
+	CountryCode      string    `json:"country_code" validate:"min=5,max=6,regexp=^[0-9]+$"`
+	Title            string    `json:"title"`
+	AccessToken      string    `json:"access_token"`
+	WebhookURL       string    `json:"webhook_url" validate:"regexp=^https.+$"`
+	TeamName         string    `json:"team_name"`
+	TeamID           string    `json:"team_id"`
+	Channel          string    `json:"channel" validate:"regexp=^#.+$"`
+	ConfigurationURL string    `json:"configuration_url" validate:"regexp=^https.+$"`
+	SetUpCompleted   bool      `json:"-"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
-//Update existing T2JPUser entity
-func (u *T2JPUser) Update(ctx context.Context) (*T2JPUser, error) {
-	u.UpdatedAt = time.Now()
-	_, err := datastore.Put(ctx, u.key(ctx), u)
-	if err != nil {
-		return nil, err
-	}
-	return u, nil
-}
-
-// Spot is the kind which stores sightseeing spot information
-// Set SpotCode as KeyName
-type Spot struct {
-	SpotCode       int64              `json:"-" datastore:"SpotCode"`
-	RevisionNumber int                `json:"-" datastore:"Revision"` // increment on update
-	Status         string             `json:"status" datastore:"Status"`     // 'post' or 'revision' or 'draft'
-	SpotName       string             `json:"spot_name" datastore:"SpotName"`
-	Body           string             `json:"body" datastore:"Body,noindex"`
-	Photos         []string           `json:"photos" datastore:"Photos"`
-	GeoInfo        appengine.GeoPoint `json:"geo_info" datastore:"GeoInfo"`
-	Phone          string             `json:"phone" datastore:"Phone"`
-	Editor         string             `json:"-" datastore:"Editor"`
-	UpdatedAt      time.Time          `json:"-" datastore:"UpdatedAt"`
-	CreatedAt      time.Time          `json:"-" datastore:"CreatedAt"`
-}
-
-// Spot Struct for Listing
-type SpotGet struct {
-	SpotCode       int64              `json:"spot_code" datastore:"SpotCode"`
-	RevisionNumber int                `json:"revision_number" datastore:"Revision"` // increment on update
-	Status         string             `json:"status" datastore:"Status"`     // 'post' or 'revision' or 'draft'
-	SpotName       string             `json:"spot_name" datastore:"SpotName"`
-	Body           string             `json:"body" datastore:"Body,noindex"`
-	Photos         []string           `json:"photos" datastore:"Photos"`
-	GeoInfo        appengine.GeoPoint `json:"geo_info" datastore:"GeoInfo"`
-	Phone          string             `json:"phone" datastore:"Phone"`
-	Editor         string             `json:"editor" datastore:"Editor"`
-	UpdatedAt      time.Time          `json:"updated_at" datastore:"UpdatedAt"`
-	CreatedAt      time.Time          `json:"created_at" datastore:"CreatedAt"`
-}
-
-func (s *Spot) key(ctx context.Context) *datastore.Key {
-	if s.SpotCode == 0 {
-		low, _, err := datastore.AllocateIDs(ctx, "Spot", nil, 1)
-		if err != nil {
-			return nil
-		}
-		return datastore.NewKey(ctx, "Spot", "", low, nil)
-	}
-	return datastore.NewKey(ctx, "Spot", "", s.SpotCode, nil)
-}
-
-func (s *SpotGet) key(ctx context.Context) *datastore.Key {
-	if s.SpotCode == 0 {
-		low, _, err := datastore.AllocateIDs(ctx, "Spot", nil, 1)
-		if err != nil {
-			return nil
-		}
-		return datastore.NewKey(ctx, "Spot", "", low, nil)
-	}
-	return datastore.NewKey(ctx, "Spot", "", s.SpotCode, nil)
+func (rn *ReviewNotify) key(ctx context.Context) *datastore.Key {
+	return datastore.NewKey(ctx, "ReviewNotify", rn.Code, 0, nil)
 }
 
 //Create new Spot Entity
-func (s *Spot) Create(ctx context.Context) (*Spot, error) {
-	currentUser := user.Current(ctx)
-	s.Editor = currentUser.ID
-	s.Status = "draft"
-	s.CreatedAt = time.Now()
-	s.UpdatedAt = time.Now()
-	newKey := s.key(ctx)
-	s.SpotCode = newKey.IntID()
-	_, err := datastore.Put(ctx, newKey, s)
+func (rn *ReviewNotify) Create(ctx context.Context) (*ReviewNotify, error) {
+	rn.SetUpCompleted = false
+	rn.CreatedAt = time.Now()
+	rn.UpdatedAt = time.Now()
+	_, err := datastore.Put(ctx, rn.key(ctx), rn)
 	if err != nil {
 		return nil, err
 	}
-	return s, nil
+	return rn, nil
 }
 
 //Update existing Spot Entity
-func (s *Spot) Update(ctx context.Context, spotCode int64) (*Spot, error) {
-	s.SpotCode = spotCode
-	s.RevisionNumber = s.RevisionNumber + 1
-	s.UpdatedAt = time.Now()
-	_, err := datastore.Put(ctx, s.key(ctx), s)
+func (rn *ReviewNotify) Update(ctx context.Context) (*ReviewNotify, error) {
+	rn.UpdatedAt = time.Now()
+	_, err := datastore.Put(ctx, rn.key(ctx), rn)
 	if err != nil {
 		return nil, err
 	}
-	return s, nil
+	return rn, nil
 }
+
+type AppStoreID struct {
+	CountryDomain string
+	CountryName   string
+	CountryCode   string
+}
+
+/*
+type AppStoreSettings struct {
+	Stores []AppStoreID
+}
+*/

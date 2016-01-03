@@ -1,9 +1,32 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title></title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Bell Apps are useful tools for Slack">
+    <meta name="author" content="Bell App">
+    <link rel="icon" href="/favicon.ico">
+    <title>Bell Apps</title>
+    <!-- Bootstrap core CSS -->
+    <link href="/static/readable.min.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
 </head>
 <body>
-{{ yield }}
+<div class="container">
+    <div class="header clearfix">
+        <h3 class="text-muted">Bell Apps</h3>
+    </div>
+
+    <div class="row">
+        {{ yield }}
+    </div>
+
+
+    <footer class="footer">
+        <p>&copy; Bell App, Inc.</p>
+    </footer>
+
+</div> <!-- /container -->
 </body>
 </html>
