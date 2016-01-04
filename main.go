@@ -10,6 +10,7 @@ func init() {
 	http.Handle("/", goji.DefaultMux)
 
 	goji.Get("/", indexHandler)
+	goji.Get("/privacy", privacyHandler)
 	goji.Get("/register", registerHandler)
 	goji.Get("/request/token", requestTokenHandler)
 	goji.Get("/parse/store/url", parseStoreURLHandler)

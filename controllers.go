@@ -33,6 +33,14 @@ func indexHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren.HTML(w, http.StatusOK, "index", map[string]interface{}{"state": sessionIDCookie})
 }
 
+func privacyHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	ren := render.New(render.Options{
+		Layout:     "layout",
+		Extensions: []string{".html"},
+	})
+	ren.HTML(w, http.StatusOK, "privacy", nil)
+}
+
 func registerHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ren := render.New(render.Options{
