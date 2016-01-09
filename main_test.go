@@ -2,7 +2,6 @@ package main
 
 import (
 	//	"bytes"
-	//	"encoding/json"
 	//	"net/http/httptest"
 	//	"strconv"
 	"encoding/json"
@@ -18,7 +17,7 @@ import (
 	"github.com/zenazn/goji/web"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/aetest"
-	//	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/datastore"
 	//	"google.golang.org/appengine/user"
 )
 
@@ -115,6 +114,44 @@ func TestParseURL(t *testing.T) {
 	dec.Decode(&jsonData)
 	if jsonData.AppID != "284882215" {
 		t.Fatalf("Parse result is invalid")
+	}
+}
+
+func TestSetNotification(t *testing.T) {
+	opt := aetest.Options{AppID: "bell-apps", StronglyConsistentDatastore: true}
+	inst, err := aetest.NewInstance(&opt)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
+	defer inst.Close()
+	req, err := inst.NewRequest("GET", "/set/notification?code=test&app_id=284882215&title=Facebook&country_code=143441", nil)
+	if err != nil {
+		t.Fatalf("Failed to create req: %v", err)
+	}
+	ctx := appengine.NewContext(req)
+	var rn ReviewNotify
+	rn.Code = "test"
+	rn.AccessToken = "test"
+	rn.WebhookURL = "https://hoge.com/slack"
+	rn.Channel = "#test"
+	rn.ConfigurationURL = "https://hoge.com/slack"
+	rn.TeamName = "TestTeam"
+	rn.TeamID = "testest"
+	_, err = rn.Create(ctx)
+	res := httptest.NewRecorder()
+	c := web.C{}
+	setNotificationHandler(c, res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("Fail to request set notification")
+	}
+	var checkReviewNotify ReviewNotify
+	checkReviewNotify.Code = "test"
+	err = datastore.Get(ctx, checkReviewNotify.key(ctx), &checkReviewNotify)
+	if err != nil {
+		t.Fatalf("Fail to get data from datastore: %v", err)
+	}
+	if checkReviewNotify.AppID != "284882215" {
+		t.Fatalf("AppID should be 284882215")
 	}
 }
 
