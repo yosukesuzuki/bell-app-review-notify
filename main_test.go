@@ -5,10 +5,11 @@ import (
 	//	"encoding/json"
 	//	"net/http/httptest"
 	//	"strconv"
-	"time"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	//	"github.com/zenazn/goji/web"
 
@@ -61,7 +62,6 @@ func TestPrivacy(t *testing.T) {
 	}
 }
 
-
 func TestRegister(t *testing.T) {
 	inst, err := aetest.NewInstance(nil)
 	if err != nil {
@@ -85,37 +85,40 @@ func TestRegister(t *testing.T) {
 		t.Fatalf("Fail to request spots list")
 	}
 }
-/*
-func TestCreateSpot(t *testing.T) {
-	opt := aetest.Options{AppID: "t2jp-2015", StronglyConsistentDatastore: true}
-	inst, err := aetest.NewInstance(&opt)
+
+type ParseResult struct {
+	AppID       string `json:"app_id"`
+	CountryCode string `json:"country_code"`
+	CountryName string `json:"country_name"`
+	Title       string `json:"title"`
+}
+
+func TestParseURL(t *testing.T) {
+	inst, err := aetest.NewInstance(nil)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
 	defer inst.Close()
-	input, err := json.Marshal(Spot{SpotName: "foo", Body: "bar"})
-	req, err := inst.NewRequest("POST", "/edit/v1/spots", bytes.NewBuffer(input))
+	req, err := inst.NewRequest("GET", "/parse/store/url?url=https%3A%2F%2Fitunes.apple.com%2Fus%2Fapp%2Ffacebook%2Fid284882215%3Fmt%3D8", nil)
 	if err != nil {
 		t.Fatalf("Failed to create req: %v", err)
 	}
-	loginUser := user.User{Email: "hoge@gmail.com", Admin: false, ID: "111111"}
-	aetest.Login(&loginUser, req)
-	ctx := appengine.NewContext(req)
+	_ = appengine.NewContext(req)
 	res := httptest.NewRecorder()
 	c := web.C{}
-	spotCreateHandler(c, res, req)
-	if res.Code != http.StatusCreated {
-		t.Fatalf("Fail to request spots create, status code: %v", res.Code)
+	parseStoreURLHandler(c, res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("Fail to request spots list")
 	}
-	spots := []Spot{}
-	_, err = datastore.NewQuery("Spot").Order("-UpdatedAt").GetAll(ctx, &spots)
-	for i := 0; i < len(spots); i++ {
-		t.Logf("SpotCode:%v", spots[i].SpotCode)
-		t.Logf("SpotName:%v", spots[i].SpotName)
+	dec := json.NewDecoder(res.Body)
+	var jsonData ParseResult
+	dec.Decode(&jsonData)
+	if jsonData.AppID != "284882215" {
+		t.Fatalf("Parse result is invalid")
 	}
-	if spots[0].SpotName != "foo" {
-		t.Fatalf("not expected value! :%v", spots[0].SpotName)
-	}
-
 }
 
+/*
 type GetResponse struct {
 	Message string `json:"message"`
 	Item    SpotGet   `json:"item"`
