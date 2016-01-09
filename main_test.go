@@ -5,6 +5,7 @@ import (
 	//	"encoding/json"
 	//	"net/http/httptest"
 	//	"strconv"
+	"time"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -60,28 +61,31 @@ func TestPrivacy(t *testing.T) {
 	}
 }
 
-/*
-func TestSpot(t *testing.T) {
+
+func TestRegister(t *testing.T) {
 	inst, err := aetest.NewInstance(nil)
 	if err != nil {
 		t.Fatalf("Failed to create instance: %v", err)
 	}
 	defer inst.Close()
-	req, err := inst.NewRequest("GET", "/edit/v1/spots", nil)
+	sessionIDCookie := sessionID()
+	req, err := inst.NewRequest("GET", "/register?state="+sessionIDCookie, nil)
 	if err != nil {
 		t.Fatalf("Failed to create req: %v", err)
 	}
-	loginUser := user.User{Email: "hoge@gmail.com", Admin: false, ID: "111111"}
-	aetest.Login(&loginUser, req)
 	_ = appengine.NewContext(req)
 	res := httptest.NewRecorder()
 	c := web.C{}
-	spotHandler(c, res, req)
+	expiration := time.Now()
+	expiration = expiration.Add(1 * time.Hour)
+	cookie := http.Cookie{Name: "sessionid", Value: sessionIDCookie, Expires: expiration}
+	req.AddCookie(&cookie)
+	registerHandler(c, res, req)
 	if res.Code != http.StatusOK {
 		t.Fatalf("Fail to request spots list")
 	}
 }
-
+/*
 func TestCreateSpot(t *testing.T) {
 	opt := aetest.Options{AppID: "t2jp-2015", StronglyConsistentDatastore: true}
 	inst, err := aetest.NewInstance(&opt)
