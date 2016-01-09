@@ -16,6 +16,7 @@ import (
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/taskqueue"
 	"google.golang.org/appengine/urlfetch"
+	"google.golang.org/appengine/memcache"
 	"gopkg.in/validator.v2"
 	//	"google.golang.org/appengine/user"
 )
@@ -169,24 +170,57 @@ func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func getReviewSettingsHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	cursorString := c.URLParams["cursor"]
 	ren := render.New()
 	ctx := appengine.NewContext(r)
-	reviews := []ReviewNotify{}
-	_, err := datastore.NewQuery("ReviewNotify").Filter("SetUpCompleted =", true).Order("-UpdatedAt").GetAll(ctx, &reviews)
-	if err != nil {
-		log.Infof(ctx, "failed to query datastore")
-		return
-	}
-	for i := 0; i < len(reviews); i++ {
-		log.Infof(ctx, reviews[i].AppID)
-		t := taskqueue.NewPOSTTask("/admin/task/getreview/"+reviews[i].Code, nil)
-		if _, err := taskqueue.Add(ctx, t, ""); err != nil {
-			log.Infof(ctx, "failed to post new task")
+	memcachedItem, err := memcache.Get(ctx, "rn_cursor")
+	if err == nil {
+		if cursorString == string(memcachedItem.Value) {
+			log.Infof(ctx, "no more queries")
+			returnMessage := map[string]interface{}{"message": "no more queries"}
+			ren.JSON(w, http.StatusOK, returnMessage)
 			return
 		}
 	}
-	listDataSet := map[string]interface{}{"items": reviews}
-	ren.JSON(w, http.StatusOK, listDataSet)
+	q := datastore.NewQuery("ReviewNotify").Filter("SetUpCompleted =", true).Order("-UpdatedAt")
+	if cursorString != "" {
+		cursor, err := datastore.DecodeCursor(string(cursorString))
+		if err == nil {
+			q = q.Start(cursor)
+		}
+	}
+	t := q.Run(ctx)
+	for {
+		var rn ReviewNotify
+		_, err := t.Next(&rn)
+		if err == datastore.Done {
+			break
+		}
+		if err != nil {
+			log.Errorf(ctx, "fetching next Review Setting: %v", err)
+			break
+		}
+		task := taskqueue.NewPOSTTask("/admin/task/getreview/"+rn.Code, nil)
+		log.Infof(ctx, "add task: %v", rn.Title)
+		if _, err := taskqueue.Add(ctx, task, ""); err != nil {
+			log.Errorf(ctx, "failed to post new task")
+			break
+		}
+	}
+	if cursor, err := t.Cursor(); err == nil {
+		task := taskqueue.NewPOSTTask("/admin/task/getreviews/"+cursor.String(), nil)
+		if _, err := taskqueue.Add(ctx, task, ""); err != nil {
+			log.Errorf(ctx, "failed to post new task")
+			return
+		}
+		memcache.Set(ctx, &memcache.Item{
+			Key:   "rn_cursor",
+			Value: []byte(cursor.String()),
+		})
+		log.Infof(ctx, "post continuous query task: %v", cursor.String())
+	}
+	returnMessage := map[string]interface{}{"message": "notification check fired"}
+	ren.JSON(w, http.StatusOK, returnMessage)
 }
 
 func getReviewHandler(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -210,8 +244,8 @@ func getReviewHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	regex_str := "([0-9]{4,}$)"
-	re, err := regexp.Compile(regex_str)
+	regexStr := "([0-9]{4,}$)"
+	re, err := regexp.Compile(regexStr)
 	if err != nil {
 		log.Infof(ctx, "regex compile error: %v", err)
 	}
