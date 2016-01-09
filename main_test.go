@@ -5,13 +5,16 @@ import (
 	//	"encoding/json"
 	//	"net/http/httptest"
 	//	"strconv"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	//	"github.com/zenazn/goji/web"
 
 	//	"net/http"
 
-	//	"google.golang.org/appengine"
+	"github.com/zenazn/goji/web"
+	"google.golang.org/appengine"
 	"google.golang.org/appengine/aetest"
 	//	"google.golang.org/appengine/datastore"
 	//	"google.golang.org/appengine/user"
@@ -24,9 +27,36 @@ func TestIndex(t *testing.T) {
 	}
 	defer inst.Close()
 
-	_, err = inst.NewRequest("GET", "/", nil)
+	req, err := inst.NewRequest("GET", "/", nil)
 	if err != nil {
 		t.Fatalf("Failed to create req1: %v", err)
+	}
+	_ = appengine.NewContext(req)
+	res := httptest.NewRecorder()
+	c := web.C{}
+	indexHandler(c, res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("Fail to request index")
+	}
+}
+
+func TestPrivacy(t *testing.T) {
+	inst, err := aetest.NewInstance(nil)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
+	defer inst.Close()
+
+	req, err := inst.NewRequest("GET", "/privacy", nil)
+	if err != nil {
+		t.Fatalf("Failed to create req1: %v", err)
+	}
+	_ = appengine.NewContext(req)
+	res := httptest.NewRecorder()
+	c := web.C{}
+	privacyHandler(c, res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("Fail to request index")
 	}
 }
 
