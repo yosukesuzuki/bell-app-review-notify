@@ -18,7 +18,7 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/aetest"
 	"google.golang.org/appengine/datastore"
-	//	"google.golang.org/appengine/user"
+	"google.golang.org/appengine/user"
 )
 
 func TestIndex(t *testing.T) {
@@ -152,6 +152,40 @@ func TestSetNotification(t *testing.T) {
 	}
 	if checkReviewNotify.AppID != "284882215" {
 		t.Fatalf("AppID should be 284882215")
+	}
+}
+
+func TestGetReviewSettings(t *testing.T) {
+	opt := aetest.Options{AppID: "bell-apps", StronglyConsistentDatastore: true}
+	inst, err := aetest.NewInstance(&opt)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
+	defer inst.Close()
+	req, err := inst.NewRequest("GET", "/admin/task/getreviews", nil)
+	if err != nil {
+		t.Fatalf("Failed to create req: %v", err)
+	}
+	loginUser := user.User{Email: "hoge@gmail.com", Admin: true, ID: "111111"}
+	aetest.Login(&loginUser, req)
+	ctx := appengine.NewContext(req)
+	var rn ReviewNotify
+	rn.Code = "test"
+	rn.AccessToken = "test"
+	rn.WebhookURL = "https://hoge.com/slack"
+	rn.Channel = "#test"
+	rn.ConfigurationURL = "https://hoge.com/slack"
+	rn.TeamName = "TestTeam"
+	rn.TeamID = "testest"
+	rn.AppID = "284882215"
+	rn.Title = "Facebook"
+	rn.CountryCode = "143441"
+	_, err = rn.Create(ctx)
+	res := httptest.NewRecorder()
+	c := web.C{}
+	getReviewSettingsHandler(c, res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("Fail to request review settings")
 	}
 }
 
