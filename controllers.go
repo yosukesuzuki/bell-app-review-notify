@@ -79,6 +79,7 @@ func requestTokenHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "failed to get response from Oauth2 request"})
 		return
 	}
+	defer resp.Body.Close()
 	dec := json.NewDecoder(resp.Body)
 	var jsonData AccessToken
 	dec.Decode(&jsonData)
@@ -118,6 +119,7 @@ func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "cannot get the url"})
 		return
 	}
+	defer resp.Body.Close()
 	var title string
 	doc, _ := goquery.NewDocumentFromResponse(resp)
 	doc.Find("body").Each(func(i int, s *goquery.Selection) {
