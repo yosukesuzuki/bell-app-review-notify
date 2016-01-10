@@ -17,7 +17,6 @@ import (
 	"google.golang.org/appengine/taskqueue"
 	"google.golang.org/appengine/urlfetch"
 	"gopkg.in/validator.v2"
-	//	"google.golang.org/appengine/user"
 )
 
 func indexHandler(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -80,6 +79,7 @@ func requestTokenHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "failed to get response from Oauth2 request"})
 		return
 	}
+	defer resp.Body.Close()
 	dec := json.NewDecoder(resp.Body)
 	var jsonData AccessToken
 	dec.Decode(&jsonData)
@@ -119,6 +119,7 @@ func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "cannot get the url"})
 		return
 	}
+	defer resp.Body.Close()
 	var title string
 	doc, _ := goquery.NewDocumentFromResponse(resp)
 	doc.Find("body").Each(func(i int, s *goquery.Selection) {
@@ -169,24 +170,49 @@ func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func getReviewSettingsHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	cursorParam := c.URLParams["cursor"]
 	ren := render.New()
 	ctx := appengine.NewContext(r)
-	reviews := []ReviewNotify{}
-	_, err := datastore.NewQuery("ReviewNotify").Filter("SetUpCompleted =", true).Order("-UpdatedAt").GetAll(ctx, &reviews)
-	if err != nil {
-		log.Infof(ctx, "failed to query datastore")
-		return
-	}
-	for i := 0; i < len(reviews); i++ {
-		log.Infof(ctx, reviews[i].AppID)
-		t := taskqueue.NewPOSTTask("/admin/task/getreview/"+reviews[i].Code, nil)
-		if _, err := taskqueue.Add(ctx, t, ""); err != nil {
-			log.Infof(ctx, "failed to post new task")
-			return
+	q := datastore.NewQuery("ReviewNotify").Filter("SetUpCompleted =", true).Order("-UpdatedAt").Limit(1000)
+	if cursorParam != "" {
+		cursor, err := datastore.DecodeCursor(cursorParam)
+		if err == nil {
+			q = q.Start(cursor)
 		}
 	}
-	listDataSet := map[string]interface{}{"items": reviews}
-	ren.JSON(w, http.StatusOK, listDataSet)
+	t := q.Run(ctx)
+	for {
+		var rn ReviewNotify
+		_, err := t.Next(&rn)
+		if err == datastore.Done {
+			break
+		}
+		if err != nil {
+			log.Errorf(ctx, "fetching next Review Setting: %v", err)
+			break
+		}
+		task := taskqueue.NewPOSTTask("/admin/task/getreview/"+rn.Code, nil)
+		log.Infof(ctx, "add task: %v", rn.Title)
+		if _, err := taskqueue.Add(ctx, task, ""); err != nil {
+			log.Errorf(ctx, "failed to post new task")
+			break
+		}
+	}
+	if cursor, err := t.Cursor(); err == nil {
+		if cursor.String() == cursorParam {
+			returnMessage := map[string]interface{}{"message": "no more query"}
+			ren.JSON(w, http.StatusOK, returnMessage)
+			return
+		}
+		task := taskqueue.NewPOSTTask("/admin/task/getreviews/"+cursor.String(), nil)
+		if _, err := taskqueue.Add(ctx, task, ""); err != nil {
+			log.Errorf(ctx, "failed to post new task")
+			return
+		}
+		log.Infof(ctx, "post next query task: %v", cursor.String())
+	}
+	returnMessage := map[string]interface{}{"message": "notification check fired"}
+	ren.JSON(w, http.StatusOK, returnMessage)
 }
 
 func getReviewHandler(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -210,8 +236,8 @@ func getReviewHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	regex_str := "([0-9]{4,}$)"
-	re, err := regexp.Compile(regex_str)
+	regexStr := "([0-9]{4,}$)"
+	re, err := regexp.Compile(regexStr)
 	if err != nil {
 		log.Infof(ctx, "regex compile error: %v", err)
 	}
