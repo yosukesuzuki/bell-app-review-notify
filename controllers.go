@@ -16,9 +16,7 @@ import (
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/taskqueue"
 	"google.golang.org/appengine/urlfetch"
-	"google.golang.org/appengine/memcache"
 	"gopkg.in/validator.v2"
-	//	"google.golang.org/appengine/user"
 )
 
 func indexHandler(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -170,21 +168,12 @@ func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func getReviewSettingsHandler(c web.C, w http.ResponseWriter, r *http.Request) {
-	cursorString := c.URLParams["cursor"]
+	cursorParam := c.URLParams["cursor"]
 	ren := render.New()
 	ctx := appengine.NewContext(r)
-	memcachedItem, err := memcache.Get(ctx, "rn_cursor")
-	if err == nil {
-		if cursorString == string(memcachedItem.Value) {
-			log.Infof(ctx, "no more queries")
-			returnMessage := map[string]interface{}{"message": "no more queries"}
-			ren.JSON(w, http.StatusOK, returnMessage)
-			return
-		}
-	}
-	q := datastore.NewQuery("ReviewNotify").Filter("SetUpCompleted =", true).Order("-UpdatedAt")
-	if cursorString != "" {
-		cursor, err := datastore.DecodeCursor(string(cursorString))
+	q := datastore.NewQuery("ReviewNotify").Filter("SetUpCompleted =", true).Order("-UpdatedAt").Limit(1000)
+	if cursorParam != "" {
+		cursor, err := datastore.DecodeCursor(cursorParam)
 		if err == nil {
 			q = q.Start(cursor)
 		}
@@ -208,16 +197,17 @@ func getReviewSettingsHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if cursor, err := t.Cursor(); err == nil {
+		if cursor.String() == cursorParam {
+			returnMessage := map[string]interface{}{"message": "no more query"}
+			ren.JSON(w, http.StatusOK, returnMessage)
+			return
+		}
 		task := taskqueue.NewPOSTTask("/admin/task/getreviews/"+cursor.String(), nil)
 		if _, err := taskqueue.Add(ctx, task, ""); err != nil {
 			log.Errorf(ctx, "failed to post new task")
 			return
 		}
-		memcache.Set(ctx, &memcache.Item{
-			Key:   "rn_cursor",
-			Value: []byte(cursor.String()),
-		})
-		log.Infof(ctx, "post continuous query task: %v", cursor.String())
+		log.Infof(ctx, "post next query task: %v", cursor.String())
 	}
 	returnMessage := map[string]interface{}{"message": "notification check fired"}
 	ren.JSON(w, http.StatusOK, returnMessage)
