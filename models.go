@@ -117,11 +117,11 @@ func NotifyReviewToSlack(ctx context.Context, ar *AppReview) {
 	var attachments []map[string]interface{}
 	attachments = append(attachments, map[string]interface{}{
 		"fallback": text,
-		"pretext": rn.Title,
-		"color": "#8EFCD3",
-		"title": ar.Title,
-		"text": ar.Content+ "\n",
-		"fields": fields,
+		"pretext":  rn.Title,
+		"color":    "#8EFCD3",
+		"title":    ar.Title,
+		"text":     ar.Content + "\n",
+		"fields":   fields,
 	})
 	payload := map[string]interface{}{"attachments": attachments, "username": "Bell Apps App Review Notification", "icon_url": iconURL, "mrkdwn": false}
 	payloadJSON, err := json.Marshal(payload)
