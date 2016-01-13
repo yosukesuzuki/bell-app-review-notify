@@ -109,8 +109,17 @@ func NotifyReviewToSlack(ctx context.Context, ar *AppReview) {
 	iconURL := "https://bell-apps.appspot.com/static/icon57.png"
 	text := "[" + rn.Title + "]\n" + ar.Title + ":\n" + ar.Content + "\n" + ar.Version
 	var fields []map[string]interface{}
+	starEmoji := ""
+	for i := 0; i < ar.Star; i++ {
+		starEmoji = starEmoji + ":star:"
+	}
 	fields = append(fields, map[string]interface{}{
-		"title": "meta",
+		"title": "Star:",
+		"value": starEmoji,
+		"short": false,
+	})
+	fields = append(fields, map[string]interface{}{
+		"title": "Meta:",
 		"value": ar.Version,
 		"short": false,
 	})
