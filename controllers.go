@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"strconv"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/unrolled/render"
@@ -241,6 +242,11 @@ func getReviewHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Infof(ctx, "regex compile error: %v", err)
 	}
+	regexNum := "([0-9])"
+	reNum, err := regexp.Compile(regexNum)
+	if err != nil {
+		log.Infof(ctx, "regex compile error: %v", err)
+	}
 	doc, _ := goquery.NewDocumentFromResponse(resp)
 	doc.Find("Document View VBoxView View MatrixView VBoxView:nth-child(1) VBoxView VBoxView VBoxView").Each(func(_ int, s *goquery.Selection) {
 		titleNode := s.Find("HBoxView>TextView>SetFontStyle>b").First()
@@ -262,6 +268,18 @@ func getReviewHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 							log.Infof(ctx, content)
 						}
 					})
+					var starString string
+					starCheckCount := 0
+					s.Find("HBoxView HBoxView PictureView").Each(func(_ int, st *goquery.Selection) {
+						if starCheckCount == 0 {
+							url, _ := st.Attr("url")
+							log.Infof(ctx, url)
+							starString, _ = st.Parent().Attr("alt")
+							log.Infof(ctx, starString)
+						}
+						starCheckCount = starCheckCount + 1
+					})
+					starCount, _ := strconv.Atoi(reNum.FindString(starString))
 					userProfileNode := s.Find("HBoxView TextView SetFontStyle GotoURL").First()
 					versionAndDate = userProfileNode.Parent().Text()
 					versionAndDate = strings.Replace(versionAndDate, "\n", "", -1)
@@ -274,6 +292,7 @@ func getReviewHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 					appreview.Title = title
 					appreview.Content = content
 					appreview.Version = versionAndDate
+					appreview.Star = starCount
 					_, err = appreview.Create(ctx)
 					if err != nil {
 						log.Infof(ctx, "cannot create review an entity", err)
