@@ -86,7 +86,7 @@ type AppReview struct {
 	AppID     string    `json:"app_id" datastore:"AppID"`
 	Code      string    `json:"code" datastore:"Code"`
 	ReviewID  string    `json:"review_id" datastore:"ReviewID"`
-	Star      string    `json:"star" datastore:"Star"`
+	Star      int       `json:"star" datastore:"Star"`
 	Title     string    `json:"title" datastore:"Tite,noindex"`
 	Content   string    `json:"content" datastore:"Content,noindex"`
 	Version   string    `json:"version" datastore:"Version,noindex"`
@@ -109,19 +109,28 @@ func NotifyReviewToSlack(ctx context.Context, ar *AppReview) {
 	iconURL := "https://bell-apps.appspot.com/static/icon57.png"
 	text := "[" + rn.Title + "]\n" + ar.Title + ":\n" + ar.Content + "\n" + ar.Version
 	var fields []map[string]interface{}
+	starEmoji := ""
+	for i := 0; i < ar.Star; i++ {
+		starEmoji = starEmoji + ":star:"
+	}
 	fields = append(fields, map[string]interface{}{
-		"title": "meta",
+		"title": "Star:",
+		"value": starEmoji,
+		"short": false,
+	})
+	fields = append(fields, map[string]interface{}{
+		"title": "Meta:",
 		"value": ar.Version,
 		"short": false,
 	})
 	var attachments []map[string]interface{}
 	attachments = append(attachments, map[string]interface{}{
 		"fallback": text,
-		"pretext": rn.Title,
-		"color": "#8EFCD3",
-		"title": ar.Title,
-		"text": ar.Content+ "\n",
-		"fields": fields,
+		"pretext":  rn.Title,
+		"color":    "#8EFCD3",
+		"title":    ar.Title,
+		"text":     ar.Content + "\n",
+		"fields":   fields,
 	})
 	payload := map[string]interface{}{"attachments": attachments, "username": "Bell Apps App Review Notification", "icon_url": iconURL, "mrkdwn": false}
 	payloadJSON, err := json.Marshal(payload)
