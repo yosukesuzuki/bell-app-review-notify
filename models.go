@@ -87,7 +87,7 @@ type AppReview struct {
 	Code      string    `json:"code" datastore:"Code"`
 	ReviewID  string    `json:"review_id" datastore:"ReviewID"`
 	Star      int       `json:"star" datastore:"Star"`
-	Title     string    `json:"title" datastore:"Tite,noindex"`
+	Title     string    `json:"title" datastore:"Title,noindex"`
 	Content   string    `json:"content" datastore:"Content,noindex"`
 	Version   string    `json:"version" datastore:"Version,noindex"`
 	CreatedAt time.Time `json:"created_at" datastore:"CreatedAt"`
