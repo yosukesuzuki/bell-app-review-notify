@@ -6,7 +6,7 @@ import (
 
 func basicAuth() string {
 	// 文字列をbyte配列にしてbase64にする
-	data := clientId +":"+clientSecret
+	data := clientId + ":" + clientSecret
 	sEnc := base64.StdEncoding.EncodeToString([]byte(data))
 	return sEnc
 }
