@@ -74,6 +74,7 @@ func (rn *ReviewNotify) Update(ctx context.Context) (*ReviewNotify, error) {
 	return rn, nil
 }
 
+// AppStoreID is a struct for AppStoreID setting
 type AppStoreID struct {
 	CountryDomain string
 	CountryName   string
@@ -97,6 +98,7 @@ func (ar *AppReview) key(ctx context.Context) *datastore.Key {
 	return datastore.NewKey(ctx, "AppReview", ar.KeyName, 0, nil)
 }
 
+// NotifyReviewToSlack is a function to send notification of new reviews to Slack channel
 func NotifyReviewToSlack(ctx context.Context, ar *AppReview) {
 	var rn ReviewNotify
 	key := datastore.NewKey(ctx, "ReviewNotify", ar.Code, 0, nil)
@@ -151,7 +153,7 @@ func NotifyReviewToSlack(ctx context.Context, ar *AppReview) {
 
 var notifyToSlackAsync = delay.Func("put", NotifyReviewToSlack)
 
-// Save puts to datastore
+// Create AppReview Entity if same review does not exist
 func (ar *AppReview) Create(ctx context.Context) (*AppReview, error) {
 	var appreview AppReview
 	ar.KeyName = ar.Code + "_" + ar.AppID + "_" + ar.ReviewID
