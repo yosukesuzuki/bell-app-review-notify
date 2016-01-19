@@ -41,6 +41,14 @@ func privacyHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren.HTML(w, http.StatusOK, "privacy", nil)
 }
 
+func supportHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	ren := render.New(render.Options{
+		Layout:     "layout",
+		Extensions: []string{".html"},
+	})
+	ren.HTML(w, http.StatusOK, "support", nil)
+}
+
 func registerHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	ren := render.New(render.Options{

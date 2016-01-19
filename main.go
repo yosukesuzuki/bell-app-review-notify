@@ -11,6 +11,7 @@ func init() {
 
 	goji.Get("/", indexHandler)
 	goji.Get("/privacy", privacyHandler)
+	goji.Get("/support", supportHandler)
 	goji.Get("/register", registerHandler)
 	goji.Get("/request/token", requestTokenHandler)
 	goji.Get("/parse/store/url", parseStoreURLHandler)
