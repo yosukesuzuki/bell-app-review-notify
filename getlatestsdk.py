@@ -20,7 +20,7 @@ def get_latest_sdk_url():
             url_list.append(u['mediaLink'])
     url_list.reverse()
     if len(url_list) > 0:
-        return url_list[0]
+        return url_list[1]
     return False
 
 
