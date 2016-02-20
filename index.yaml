@@ -12,6 +12,22 @@ indexes:
 
 - kind: ReviewNotify
   properties:
+  - name: AppID
+  - name: Channel
+  - name: SetUpCompleted
+  - name: TeamID
+  - name: UpdatedAt
+    direction: desc
+
+- kind: ReviewNotify
+  properties:
+  - name: SetUpCompleted
+  - name: TeamID
+  - name: UpdatedAt
+    direction: desc
+
+- kind: ReviewNotify
+  properties:
   - name: SetUpCompleted
   - name: UpdatedAt
     direction: desc

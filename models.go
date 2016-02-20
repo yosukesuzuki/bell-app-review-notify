@@ -31,6 +31,13 @@ type AccessToken struct {
 	Error           string          `json:"error"`
 }
 
+// ExistingSetting is a struct for existing setting
+type ExistingSetting struct {
+	Channel string `json:"channel" validate:"regexp=^#.+$"`
+	Title   string `json:"title"`
+	AppID   string `json:"app_id" validate:"min=5,max=20,regexp=^[0-9]+$"`
+}
+
 // ReviewNotify is a Struct for AppStore review notification setting, definition of datastore kind
 type ReviewNotify struct {
 	Code             string    `json:"code"`

@@ -44,6 +44,32 @@
             </div>
             `;
             $("div#request-token-panel").removeClass("panel-primary").addClass("panel-success");
+            if((data.existing_settings) && (data.existing_settings.length > 0)){
+                var existingSetting = `<div class="panel panel-primary" id="existing-settings">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Existing Setting in your Team</h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table">
+                        $list
+                    </table>
+                </div>
+            </div>
+                `;
+                var listData = '';
+                $.each(data.existing_settings, function(i, val){
+                    listData += '<tr><td>'+val.title +'</td><td>&rarr;</td><td>'+val.channel+'</td><td><span class="btn btn-danger btn-xs remove" setting="'+val.channel+';'+val.app_id+'">remove</span></td></tr>';
+                });
+                $("div#process-container").append(existingSetting.replace("$list", listData));
+                $(document).on("click", ".btn.remove", function(){
+                    var settings = $(this).attr("setting").split(";");
+                    var that = this;
+                    $.ajax({url: "/remove/notification?code="+code+"&app_id="+settings[1]+"&channel="+encodeURIComponent(settings[0]),
+                    }).done(function(data){
+                        $(that).parent().parent().remove();
+                    });
+                })
+            }
             $("div#process-container").append(urlPostForm);
             d.resolve();
         }).fail(function(data){

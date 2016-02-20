@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"code.google.com/p/go.net/context"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/unrolled/render"
 	"github.com/zenazn/goji/web"
@@ -109,7 +110,39 @@ func requestTokenHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "cannot create new entity"})
 		return
 	}
-	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "successfully fetch webhook settings"})
+	ess, err := getExistingSettings(ctx, code)
+	if err != nil {
+		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "cannot check existing settings"})
+		return
+	}
+	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "successfully fetch webhook settings", "existing_settings": ess})
+}
+
+func getExistingSettings(ctx context.Context, code string) ([]ExistingSetting, error) {
+	// The Query type and its methods are used to construct a query.
+	var rn ReviewNotify
+	rn.Code = code
+	err := datastore.Get(ctx, rn.key(ctx), &rn)
+	if err != nil {
+		return nil, err
+	}
+	q := datastore.NewQuery("ReviewNotify").Filter("SetUpCompleted =", true).Filter("TeamID =", rn.TeamID).Order("-UpdatedAt")
+
+	// To retrieve the results,
+	// you must execute the Query using its GetAll or Run methods.
+	var rns []ReviewNotify
+	if _, err := q.GetAll(ctx, &rns); err != nil {
+		return nil, err
+	}
+	var ess []ExistingSetting
+	for i := 0; i < len(rns); i++ {
+		var es ExistingSetting
+		es.Channel = rns[i].Channel
+		es.Title = rns[i].Title
+		es.AppID = rns[i].AppID
+		ess = append(ess, es)
+	}
+	return ess, nil
 }
 
 func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -137,6 +170,49 @@ func parseStoreURLHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren.JSON(w, http.StatusOK, map[string]interface{}{"app_id": appID, "country_code": countryCode, "country_name": countryName, "title": title})
 }
 
+func removeNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
+	ren := render.New()
+	ctx := appengine.NewContext(r)
+	code := r.URL.Query().Get("code")
+	appID := r.URL.Query().Get("app_id")
+	channel := r.URL.Query().Get("channel")
+	var rn ReviewNotify
+	rn.Code = code
+	err := datastore.Get(ctx, rn.key(ctx), &rn)
+	if err != nil {
+		ren.JSON(w, http.StatusNotFound, map[string]interface{}{"message": "invalid request"})
+		return
+	}
+	now := time.Now()
+	expiration := rn.CreatedAt.Add(3 * time.Hour)
+	if !expiration.After(now) {
+		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "code expired, retry auth process of Slack"})
+		return
+	}
+	q := datastore.NewQuery("ReviewNotify").
+		Filter("SetUpCompleted =", true).
+		Filter("TeamID =", rn.TeamID).
+		Filter("AppID =", appID).
+		Filter("Channel =", channel).
+		Order("-UpdatedAt")
+	var rns []ReviewNotify
+	if _, err := q.GetAll(ctx, &rns); err != nil {
+		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "failed to query data"})
+		return
+	}
+	if len(rns) < 1 {
+		ren.JSON(w, http.StatusNotFound, map[string]interface{}{"message": "setting not found"})
+		return
+	}
+	for i := 0; i < len(rns); i++ {
+		err := datastore.Delete(ctx, rns[i].key(ctx))
+		if err != nil {
+			ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "failed to delete data"})
+			return
+		}
+	}
+	ren.JSON(w, http.StatusOK, map[string]interface{}{"message": "successfully delete setting"})
+}
 func setNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ren := render.New()
 	ctx := appengine.NewContext(r)
