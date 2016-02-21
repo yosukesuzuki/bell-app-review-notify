@@ -32,7 +32,7 @@ test:
     - sleep 5
   override:
     - $HOME/go_appengine/goapp test
-    - wdio wdio.conf.js
+#     - wdio wdio.conf.js
 
 deployment:
   development:
