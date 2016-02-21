@@ -14,14 +14,14 @@ dependencies:
     - unzip -q -d $HOME google_appengine.zip
     - npm install -g webdriverio
     - npm install -g webdriver-manager
-    - curl -O http://selenium-release.storage.googleapis.com/2.47/selenium-server-standalone-2.47.0.jar
+    - curl -O http://selenium-release.storage.googleapis.com/2.52.0/selenium-server-standalone-2.52.0.jar
     - echo "package main;const clientId = \""$CLIENT_ID"\";const clientSecret = \""$CLIENT_SECRET"\"" | gofmt > config.go
   override:
       - echo $HOME
 
 test:
   pre:
-    - java -jar selenium-server-standalone-2.47.0.jar:
+    - java -jar selenium-server-standalone-2.52.0.jar:
         background: true
     - sleep 5
     - webdriver-manager start:
@@ -32,7 +32,7 @@ test:
     - sleep 5
   override:
     - $HOME/go_appengine/goapp test
-    - wdio wdio.conf.js
+#     - wdio wdio.conf.js
 
 deployment:
   development:
