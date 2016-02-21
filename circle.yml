@@ -21,7 +21,7 @@ dependencies:
 
 test:
   pre:
-    - java -jar selenium-server-standalone-2.47.0.jar:
+    - java -jar selenium-server-standalone-2.52.0.jar:
         background: true
     - sleep 5
     - webdriver-manager start:
