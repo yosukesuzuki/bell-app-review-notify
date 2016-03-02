@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/unrolled/render"
 	"github.com/zenazn/goji/web"
+	"golang.org/x/net/context"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
@@ -78,12 +78,12 @@ func requestTokenHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	client := urlfetch.Client(ctx)
 	code := r.URL.Query().Get("code")
-	req, err := http.NewRequest("GET", "https://slack.com/api/oauth.access?code="+code, nil)
+	req, err := http.NewRequest("GET", "https://slack.com/api/oauth.access?code=" + code, nil)
 	if err != nil {
 		ren.JSON(w, http.StatusBadRequest, map[string]interface{}{"message": "cannnot make http request"})
 		return
 	}
-	req.Header.Add("Authorization", "Basic "+basicAuth())
+	req.Header.Add("Authorization", "Basic " + basicAuth())
 	resp, err := client.Do(req)
 	if err != nil {
 		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "failed to get response from Oauth2 request"})
@@ -190,11 +190,11 @@ func removeNotificationHandler(c web.C, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	q := datastore.NewQuery("ReviewNotify").
-		Filter("SetUpCompleted =", true).
-		Filter("TeamID =", rn.TeamID).
-		Filter("AppID =", appID).
-		Filter("Channel =", channel).
-		Order("-UpdatedAt")
+	Filter("SetUpCompleted =", true).
+	Filter("TeamID =", rn.TeamID).
+	Filter("AppID =", appID).
+	Filter("Channel =", channel).
+	Order("-UpdatedAt")
 	var rns []ReviewNotify
 	if _, err := q.GetAll(ctx, &rns); err != nil {
 		ren.JSON(w, http.StatusInternalServerError, map[string]interface{}{"message": "failed to query data"})
@@ -276,7 +276,7 @@ func getReviewSettingsHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 			log.Errorf(ctx, "fetching next Review Setting: %v", err)
 			break
 		}
-		task := taskqueue.NewPOSTTask("/admin/task/getreview/"+rn.Code, nil)
+		task := taskqueue.NewPOSTTask("/admin/task/getreview/" + rn.Code, nil)
 		log.Infof(ctx, "add task: %v", rn.Title)
 		if _, err := taskqueue.Add(ctx, task, ""); err != nil {
 			log.Errorf(ctx, "failed to post new task")
@@ -289,7 +289,7 @@ func getReviewSettingsHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 			ren.JSON(w, http.StatusOK, returnMessage)
 			return
 		}
-		task := taskqueue.NewPOSTTask("/admin/task/getreviews/"+cursor.String(), nil)
+		task := taskqueue.NewPOSTTask("/admin/task/getreviews/" + cursor.String(), nil)
 		if _, err := taskqueue.Add(ctx, task, ""); err != nil {
 			log.Errorf(ctx, "failed to post new task")
 			return
@@ -312,7 +312,7 @@ func getReviewHandler(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	client := urlfetch.Client(ctx)
-	req, err := http.NewRequest("GET", "https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?pageNumber=0&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software&id="+rn.AppID, nil)
+	req, err := http.NewRequest("GET", "https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?pageNumber=0&sortOrdering=4&onlyLatestVersion=false&type=Purple+Software&id=" + rn.AppID, nil)
 	req.Header.Add("X-Apple-Store-Front", rn.CountryCode)
 	req.Header.Add("User-Agent", "iTunes/12.3 (Macintosh; U; Mac OS X 10.11)")
 	resp, err := client.Do(req)

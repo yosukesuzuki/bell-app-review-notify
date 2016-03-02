@@ -153,6 +153,30 @@ func TestSetNotification(t *testing.T) {
 	if checkReviewNotify.AppID != "284882215" {
 		t.Fatalf("AppID should be 284882215")
 	}
+	var rn2 ReviewNotify
+	rn2.Code = "test2"
+	rn2.AccessToken = "test2"
+	rn2.WebhookURL = "https://hoge.com/slack"
+	rn2.Channel = "#test"
+	rn2.ConfigurationURL = "https://hoge.com/slack"
+	rn2.TeamName = "TestTeam"
+	rn2.TeamID = "testest"
+	_, err = rn2.Create(ctx)
+	ess, err := getExistingSettings(ctx, "test2")
+	if ess[0].AppID != "284882215" {
+		t.Fatalf("AppID should be 284882215")
+	}
+	req2, err := inst.NewRequest("GET", "/remove/notification?code=test2&app_id=284882215&channel=%23test", nil)
+	if err != nil {
+		t.Fatalf("Failed to create req: %v", err)
+	}
+	res2 := httptest.NewRecorder()
+	c2 := web.C{}
+	removeNotificationHandler(c2, res2, req2)
+	ess2, err := getExistingSettings(ctx, "test2")
+	if len(ess2) > 0 {
+		t.Fatalf("Existing Setting should be 0")
+	}
 }
 
 func TestGetReviewSettings(t *testing.T) {
